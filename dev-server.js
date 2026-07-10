@@ -70,5 +70,5 @@ const server = http.createServer(async (req, res) => {
   fs.createReadStream(filePath).pipe(res);
 });
 
-const PORT = process.env.DEV_PORT || 3050;
-server.listen(PORT, () => console.log(`Dev server rodando em http://localhost:${PORT}`));
+const PORT = process.env.PORT || process.env.DEV_PORT || 3050;
+server.listen(PORT, '0.0.0.0', () => console.log(`Server rodando na porta ${PORT}`));
