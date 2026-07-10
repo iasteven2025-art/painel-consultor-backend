@@ -1,0 +1,20 @@
+{
+  "name": "painel-consultor-backend",
+  "version": "1.0.0",
+  "description": "Backend multi-tenant do Painel do Consultor — Grupos de Empresa, Usuários e Permissões",
+  "private": true,
+  "scripts": {
+    "migrate": "node scripts/migrate.js",
+    "seed": "node scripts/seed.js",
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
