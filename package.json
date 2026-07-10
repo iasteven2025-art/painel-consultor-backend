@@ -4,6 +4,7 @@
   "description": "Backend multi-tenant do Painel do Consultor — Grupos de Empresa, Usuários e Permissões",
   "private": true,
   "scripts": {
+    "start": "node dev-server.js",
     "migrate": "node scripts/migrate.js",
     "seed": "node scripts/seed.js",
     "dev": "vercel dev"
