@@ -1,0 +1,24 @@
+{
+  "name": "painel-consultor-backend",
+  "version": "1.0.0",
+  "description": "Consultor",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iasteven2025-art/painel-consultor-backend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/iasteven2025-art/painel-consultor-backend/issues"
+  },
+  "homepage": "https://github.com/iasteven2025-art/painel-consultor-backend#readme",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
