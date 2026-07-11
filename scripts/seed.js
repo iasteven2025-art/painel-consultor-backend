@@ -167,6 +167,47 @@ async function main() {
   }
   console.log('Papel Administrador vinculado ao usuário inicial.');
 
+  // 5) Planos de faturamento padrão
+  const planosDefault = [
+    { nome: 'Básico', descricao: 'Até 3 usuários, 1 empresa.', valor: 297.00, limiteUsuarios: 3, limiteEmpresas: 1 },
+    { nome: 'Profissional', descricao: 'Até 10 usuários, 5 empresas.', valor: 697.00, limiteUsuarios: 10, limiteEmpresas: 5 },
+    { nome: 'Enterprise', descricao: 'Usuários e empresas ilimitados.', valor: 1497.00, limiteUsuarios: null, limiteEmpresas: null }
+  ];
+  for (const p of planosDefault) {
+    const existente = await pool.query('SELECT id FROM planos_faturamento WHERE nome=$1', [p.nome]);
+    if (!existente.rows.length) {
+      await pool.query(
+        'INSERT INTO planos_faturamento (nome, descricao, valor_mensal, limite_usuarios, limite_empresas) VALUES ($1,$2,$3,$4,$5)',
+        [p.nome, p.descricao, p.valor, p.limiteUsuarios, p.limiteEmpresas]
+      );
+    }
+  }
+  console.log('Planos de faturamento padrão OK (Básico, Profissional, Enterprise).');
+
+  // Vincula o Grupo Actcon (o seu próprio grupo, vendedor da plataforma) ao plano Enterprise e status ativo
+  const planoEnterprise = await pool.query("SELECT id FROM planos_faturamento WHERE nome='Enterprise'");
+  if (planoEnterprise.rows.length) {
+    await pool.query("UPDATE grupos_empresa SET plano_id=$1, status='ativo' WHERE id=$2 AND plano_id IS NULL", [planoEnterprise.rows[0].id, grupoId]);
+  }
+
+  // 6) Administrador da plataforma (você e sua equipe interna — diferente do admin do Grupo Actcon)
+  const platformEmail = process.env.SEED_PLATFORM_EMAIL || email;
+  const platformSenha = process.env.SEED_PLATFORM_SENHA || senha;
+  const platformNome = process.env.SEED_PLATFORM_NOME || nome;
+
+  const platformExistente = await pool.query('SELECT id FROM admins_plataforma WHERE email=$1', [platformEmail]);
+  if (platformExistente.rows.length) {
+    console.log(`Administrador de plataforma já existia (${platformEmail}).`);
+  } else {
+    const platformSenhaHash = await bcrypt.hash(platformSenha, 10);
+    await pool.query(
+      'INSERT INTO admins_plataforma (nome, email, senha_hash) VALUES ($1,$2,$3)',
+      [platformNome, platformEmail, platformSenhaHash]
+    );
+    console.log(`Administrador de plataforma criado: ${platformEmail} / senha inicial: ${platformSenha}`);
+    console.log('Este login é separado do login de usuário do Grupo Actcon — acesse via /plataforma.');
+  }
+
   await pool.end();
   console.log('\nSeed concluído com sucesso.');
 }

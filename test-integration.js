@@ -179,6 +179,53 @@ async function main() {
   await clienteDetail(mockReq({ method: 'DELETE', cookie: cookieAdmin2, query: { id: clienteId } }), res);
   assert(res.statusCode === 200, 'exclusão de cliente funciona');
 
+  console.log('\n--- 15) Plataforma: login de admin de plataforma é separado do login de usuário de grupo ---');
+  const platformLogin = require('./api/plataforma/auth/login');
+  const platformMe = require('./api/plataforma/auth/me');
+  const gruposPlataforma = require('./api/plataforma/grupos/index');
+  const planosPlataforma = require('./api/plataforma/planos/index');
+
+  res = mockRes();
+  await platformLogin(mockReq({ method: 'POST', body: { email: 'steven.passos@actcon.com.br', senha: 'trocar123' } }), res);
+  assert(res.statusCode === 200, 'login de plataforma funciona com o mesmo e-mail/senha do seed');
+  const cookiePlataforma = extractCookie(res);
+
+  res = mockRes();
+  await platformMe(mockReq({ cookie: cookiePlataforma }), res);
+  assert(res.statusCode === 200, '/api/plataforma/auth/me retorna o admin autenticado');
+
+  res = mockRes();
+  await gruposPlataforma(mockReq({ cookie: cookieAdmin2 }), res); // cookie de USUÁRIO comum, não de plataforma
+  assert(res.statusCode === 401, 'usuário comum (sessão de grupo) NÃO acessa rotas de plataforma com seu cookie');
+
+  console.log('\n--- 16) Plataforma: criar novo grupo cliente + admin principal em uma transação ---');
+  res = mockRes();
+  await planosPlataforma(mockReq({ cookie: cookiePlataforma }), res);
+  const planoProfissional = res.body.planos.find(p => p.nome === 'Profissional');
+
+  res = mockRes();
+  await gruposPlataforma(mockReq({
+    method: 'POST', cookie: cookiePlataforma,
+    body: { nomeGrupo: 'Cliente Teste LTDA', planoId: planoProfissional.id, status: 'trial', adminNome: 'Admin Teste', adminEmail: 'admin@clienteteste.com.br', adminSenha: 'senhaForte123' }
+  }), res);
+  assert(res.statusCode === 201, 'grupo cliente criado com sucesso');
+  assert(res.body.adminPrincipal.email === 'admin@clienteteste.com.br', 'administrador principal criado junto, na mesma transação');
+
+  res = mockRes();
+  await login(mockReq({ method: 'POST', body: { email: 'admin@clienteteste.com.br', senha: 'senhaForte123' } }), res);
+  assert(res.statusCode === 200, 'administrador principal do novo grupo consegue logar normalmente');
+  assert(res.body.usuario.permissoes.includes('usuarios.gerenciar'), 'administrador principal já nasce com papel Administrador completo');
+  const cookieNovoCliente = extractCookie(res);
+
+  res = mockRes();
+  await empresasIndex(mockReq({ cookie: cookieNovoCliente }), res);
+  assert(res.body.empresas.length === 0, 'novo grupo começa isolado, sem nenhuma empresa do Grupo Actcon');
+
+  console.log('\n--- 17) Plataforma: valor de plano igual a zero não deve virar null (bug corrigido) ---');
+  res = mockRes();
+  await planosPlataforma(mockReq({ method: 'POST', cookie: cookiePlataforma, body: { nome: 'Gratuito Teste', valorMensal: 0, limiteUsuarios: 1, limiteEmpresas: 1 } }), res);
+  assert(res.statusCode === 201 && Number(res.body.plano.valor_mensal) === 0, 'plano com valor mensal 0 é salvo como 0, não como null');
+
   await pool.end();
   console.log('\n' + (process.exitCode ? 'ALGUM TESTE FALHOU' : 'TODOS OS TESTES PASSARAM'));
 }

@@ -23,6 +23,13 @@ const ROUTES = [
   { pattern: /^\/api\/permissoes$/, file: 'api/permissoes/index.js' },
   { pattern: /^\/api\/clientes$/, file: 'api/clientes/index.js' },
   { pattern: /^\/api\/clientes\/([^/]+)$/, file: 'api/clientes/[id].js', param: 'id' },
+  { pattern: /^\/api\/plataforma\/auth\/login$/, file: 'api/plataforma/auth/login.js' },
+  { pattern: /^\/api\/plataforma\/auth\/logout$/, file: 'api/plataforma/auth/logout.js' },
+  { pattern: /^\/api\/plataforma\/auth\/me$/, file: 'api/plataforma/auth/me.js' },
+  { pattern: /^\/api\/plataforma\/grupos$/, file: 'api/plataforma/grupos/index.js' },
+  { pattern: /^\/api\/plataforma\/grupos\/([^/]+)$/, file: 'api/plataforma/grupos/[id].js', param: 'id' },
+  { pattern: /^\/api\/plataforma\/planos$/, file: 'api/plataforma/planos/index.js' },
+  { pattern: /^\/api\/plataforma\/planos\/([^/]+)$/, file: 'api/plataforma/planos/[id].js', param: 'id' },
   { pattern: /^\/api\/claude\/messages$/, file: 'api/claude/messages.js' }
 ];
 
