@@ -1,24 +1,20 @@
 {
   "name": "painel-consultor-backend",
   "version": "1.0.0",
-  "description": "Consultor",
-  "main": "index.js",
+  "description": "Backend multi-tenant do Painel do Consultor — Grupos de Empresa, Usuários e Permissões",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "migrate": "node scripts/migrate.js",
+    "seed": "node scripts/seed.js",
+    "dev": "vercel dev"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/iasteven2025-art/painel-consultor-backend.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/iasteven2025-art/painel-consultor-backend/issues"
-  },
-  "homepage": "https://github.com/iasteven2025-art/painel-consultor-backend#readme",
   "dependencies": {
-    "express": "^5.2.1"
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

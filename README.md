@@ -1,2 +1,0 @@
-# painel-consultor-backend
-Consultor
