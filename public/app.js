@@ -4,7 +4,7 @@
    ============================================================ */
 const API = ''; // mesmo domínio (funções serverless em /api/...)
 let usuarioAtual = null;
-let activeSection = 'empresas';
+let activeSection = 'clientes';
 let permissoesCatalogo = [];
 
 async function apiFetch(path, options = {}) {
@@ -58,10 +58,12 @@ document.getElementById('login-senha').addEventListener('keydown', e => { if (e.
 
 /* ---------------- Shell / navegação ---------------- */
 const SECOES = [
+  { id: 'clientes', label: 'Clientes', permissao: 'clientes.ver' },
   { id: 'empresas', label: 'Empresas do Grupo', permissao: null },
   { id: 'usuarios', label: 'Usuários', permissao: 'usuarios.gerenciar' },
   { id: 'papeis', label: 'Papéis e Permissões', permissao: 'usuarios.gerenciar' }
 ];
+const REGIOES_PADRAO = ['Zona da Mata','Vale do Rio Doce','Vale do Aço','Norte de Minas','Sul de Minas','Central Mineira','Triângulo Mineiro','Espírito Santo','Não informada'];
 
 function iniciarApp() {
   document.getElementById('login-screen').style.display = 'none';
@@ -95,12 +97,129 @@ async function renderContent() {
   const el = document.getElementById('content');
   el.innerHTML = '<div class="empty-state">Carregando...</div>';
   try {
-    if (activeSection === 'empresas') await renderEmpresas(el);
+    if (activeSection === 'clientes') await renderClientes(el);
+    else if (activeSection === 'empresas') await renderEmpresas(el);
     else if (activeSection === 'usuarios') await renderUsuarios(el);
     else if (activeSection === 'papeis') await renderPapeis(el);
   } catch (e) {
     el.innerHTML = `<div class="empty-state" style="color:var(--danger)">${e.message}</div>`;
   }
+}
+
+/* ---------------- Clientes ---------------- */
+let clientesFiltro = { busca: '', regiao: '' };
+let clienteContatosTemp = [];
+
+async function renderClientes(el) {
+  const params = new URLSearchParams();
+  if (clientesFiltro.busca) params.set('busca', clientesFiltro.busca);
+  if (clientesFiltro.regiao) params.set('regiao', clientesFiltro.regiao);
+  const { clientes } = await apiFetch('/api/clientes?' + params.toString());
+  const podeEditar = usuarioAtual.permissoes.includes('clientes.editar');
+  const podeExcluir = usuarioAtual.permissoes.includes('clientes.excluir');
+
+  el.innerHTML = `
+    <div class="page-header-row">
+      <div><h1 class="page-title">Clientes</h1><div class="page-subtitle">Órgãos públicos atendidos pelo ${usuarioAtual.grupo_nome}</div></div>
+      ${podeEditar ? `<button class="btn btn-primary btn-sm" onclick="abrirModalCliente()">+ Novo Cliente</button>` : ''}
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:16px">
+      <input id="f-busca" placeholder="Buscar por nome ou município..." value="${clientesFiltro.busca}" style="flex:1;padding:9px 12px;border:1px solid var(--border-strong);border-radius:8px" onkeydown="if(event.key==='Enter') aplicarFiltroClientes()">
+      <select id="f-regiao-filtro" style="padding:9px 12px;border:1px solid var(--border-strong);border-radius:8px" onchange="aplicarFiltroClientes()">
+        <option value="">Todas as regiões</option>
+        ${REGIOES_PADRAO.map(r => `<option value="${r}" ${clientesFiltro.regiao===r?'selected':''}>${r}</option>`).join('')}
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="aplicarFiltroClientes()">Buscar</button>
+    </div>
+    ${clientes.map(c => `
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:600">${c.nome_abreviado || c.nome_completo}</div>
+            <div style="font-size:12.5px;color:var(--text-muted)">${c.municipio || ''}${c.regiao ? ' · ' + c.regiao : ''}${c.populacao ? ' · ' + Number(c.populacao).toLocaleString('pt-BR') + ' hab.' : ''}</div>
+            ${(c.contatos||[]).length ? `<div style="margin-top:6px;font-size:12px;color:var(--text-muted)">${(c.contatos||[]).map(ct=>ct.nome).join(', ')}</div>` : ''}
+          </div>
+          <div class="row-actions">
+            ${podeEditar ? `<button class="btn btn-ghost btn-sm" onclick='abrirModalCliente(${JSON.stringify(c).replace(/'/g,"&apos;")})'>Editar</button>` : ''}
+            ${podeExcluir ? `<button class="btn btn-danger-ghost btn-sm" onclick="excluirCliente('${c.id}')">Excluir</button>` : ''}
+          </div>
+        </div>
+      </div>
+    `).join('') || '<div class="empty-state">Nenhum cliente encontrado.</div>'}
+  `;
+}
+function aplicarFiltroClientes() {
+  clientesFiltro.busca = document.getElementById('f-busca').value.trim();
+  clientesFiltro.regiao = document.getElementById('f-regiao-filtro').value;
+  renderContent();
+}
+
+function abrirModalCliente(cliente) {
+  const editing = !!cliente;
+  clienteContatosTemp = editing ? (cliente.contatos || []).map(c => ({ ...c })) : [];
+  const bodyHtml = () => `
+    <div class="form-field"><label>Razão social / nome completo</label><input id="m-nome-completo" value="${editing?cliente.nome_completo:''}" placeholder="Ex: Prefeitura Municipal de Ipatinga"></div>
+    <div class="form-field"><label>Nome abreviado</label><input id="m-nome-abrev" value="${editing?(cliente.nome_abreviado||''):''}" placeholder="Ex: PM Ipatinga"></div>
+    <div class="form-field"><label>Município</label><input id="m-municipio" value="${editing?(cliente.municipio||''):''}"></div>
+    <div class="form-field"><label>Região</label>
+      <select id="m-regiao">
+        <option value="">Selecione...</option>
+        ${REGIOES_PADRAO.map(r => `<option value="${r}" ${editing && cliente.regiao===r?'selected':''}>${r}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-field"><label>População estimada</label><input id="m-populacao" type="number" value="${editing?(cliente.populacao||''):''}"></div>
+    <div class="form-field"><label>Domínio (site)</label><input id="m-dominio" value="${editing?(cliente.dominio||''):''}" placeholder="municipio.mg.gov.br"></div>
+    <div class="form-field"><label>Observações</label><input id="m-observacoes" value="${editing?(cliente.observacoes||''):''}"></div>
+    <div class="form-field">
+      <label>Contatos</label>
+      <div id="contatos-lista"></div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="adicionarContatoTemp()" style="margin-top:6px">+ Adicionar contato</button>
+    </div>
+  `;
+  abrirModal(editing ? 'Editar Cliente' : 'Novo Cliente', bodyHtml(), async () => {
+    const body = {
+      nomeCompleto: document.getElementById('m-nome-completo').value.trim(),
+      nomeAbreviado: document.getElementById('m-nome-abrev').value.trim(),
+      municipio: document.getElementById('m-municipio').value.trim(),
+      regiao: document.getElementById('m-regiao').value,
+      populacao: parseInt(document.getElementById('m-populacao').value) || null,
+      dominio: document.getElementById('m-dominio').value.trim(),
+      observacoes: document.getElementById('m-observacoes').value.trim(),
+      contatos: clienteContatosTemp
+    };
+    if (!body.nomeCompleto) { toast('Informe o nome do cliente', 'danger'); return false; }
+    if (editing) await apiFetch(`/api/clientes/${cliente.id}`, { method: 'PUT', body });
+    else await apiFetch('/api/clientes', { method: 'POST', body });
+    toast('Cliente salvo com sucesso', 'success');
+    renderContent();
+    return true;
+  });
+  renderContatosTemp();
+}
+function renderContatosTemp() {
+  const el = document.getElementById('contatos-lista');
+  if (!el) return;
+  el.innerHTML = clienteContatosTemp.map((ct, i) => `
+    <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+      <input placeholder="Nome" value="${ct.nome||''}" oninput="clienteContatosTemp[${i}].nome=this.value" style="flex:2;padding:7px 9px;border:1px solid var(--border-strong);border-radius:6px;font-size:12.5px">
+      <input placeholder="E-mail" value="${ct.email||''}" oninput="clienteContatosTemp[${i}].email=this.value" style="flex:2;padding:7px 9px;border:1px solid var(--border-strong);border-radius:6px;font-size:12.5px">
+      <input placeholder="Telefone" value="${ct.telefone||''}" oninput="clienteContatosTemp[${i}].telefone=this.value" style="flex:1;padding:7px 9px;border:1px solid var(--border-strong);border-radius:6px;font-size:12.5px">
+      <button type="button" class="btn btn-danger-ghost btn-sm" onclick="removerContatoTemp(${i})">✕</button>
+    </div>
+  `).join('') || '<div style="font-size:12px;color:var(--text-muted)">Nenhum contato adicionado</div>';
+}
+function adicionarContatoTemp() {
+  clienteContatosTemp.push({ id: 'c' + Date.now(), nome: '', email: '', telefone: '', principal: clienteContatosTemp.length === 0 });
+  renderContatosTemp();
+}
+function removerContatoTemp(i) {
+  clienteContatosTemp.splice(i, 1);
+  renderContatosTemp();
+}
+async function excluirCliente(id) {
+  if (!confirm('Excluir este cliente?')) return;
+  try { await apiFetch(`/api/clientes/${id}`, { method: 'DELETE' }); toast('Cliente excluído', 'success'); renderContent(); }
+  catch (e) { toast(e.message, 'danger'); }
 }
 
 /* ---------------- Empresas ---------------- */
